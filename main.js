@@ -1,11 +1,13 @@
 
 /* This is the main data structure for the whole visualization. */
 function Visualization() {
-    this.height = 1400
+    this.height = 100
     this.width = 800
-    this.margin = new Margin(30, 30, 30, 30)
+    this.margin = new Margin(10, 10, 10, 10)
     this.scale = new Scale()
     this.data
+	this.particles_number = 6
+	this.barPadding = 20;
     this.particles = {0:"NOx", 1:"NO", 2:"NO2", 3:"CO", 4:"O3", 5:"SO2"}
 }
 
@@ -28,7 +30,8 @@ function main(filename)
 {
     d3.csv(filename, function(data)
     {
-        var vis = new Visualization()
+		var vis = new Visualization()
+		vis.data = data
         initVis(vis)
         console.log("VIS", vis)
     })
@@ -36,16 +39,6 @@ function main(filename)
 
 function initVis(vis)
 {
-    vis.scale.x = d3.scaleLinear()
-        .domain([0, 6])    // this is the value on the x-axis
-        .range([0, vis.width - vis.margin.left - vis.margin.left])    // this is the space allocated the axis
-        .nice()
-
-    vis.scale.y = d3.scaleLinear()
-        .domain([0, 300])    // this is the value on the y-axis
-        .range([300 - vis.margin.top - vis.margin.bottom, 0])    // this is the space allocated the axis
-        .nice()
-
     var xAxis = d3.axisBottom(vis.scale.x)
         .ticks(1)
 
@@ -59,70 +52,59 @@ function initVis(vis)
         .attr("class", "title")
         .text("Particles Data, Copenhagen, Denmark (05-03-2017 00:00 - 07-04-2017 03:00)")
 
-    /* Adding the main containter for the temperature graph */
-    d3.select("body")
+	/* Adding the main containter for the temperature graph */
+    var svg = d3.select("body")
         .append("svg")
-        .attr("id", "pollutionGraph")
-        .attr("width", 800)
-        .attr("height", 400)
+		.attr("id", "pollutionGraph")
+        .attr("width", vis.width)
+        .attr("height", vis.height);
 
-    /* Adding some spacing at the bottom of the visualization */
-    d3.select("body")
-        .append("svg")
-        .attr("id", "footer")
-        .attr("transform", "translate(0,50)")
-        .attr("width", 800)
-        .attr("height", 100)
+	var data = vis.data[0];
+    var arr = [data["NOx myg/m3"], data["NO myg/m3"], data["NO2 myg/m3"], data["CO mg/m3"], data["O3 myg/m3"], data["SO2 myg/m3"]];
+			
+    vis.scale.x = d3.scaleLinear()
+        .domain([0, 6])    // this is the value on the x-axis
+        .range([0, vis.width - vis.margin.left - vis.margin.left])    // this is the space allocated the axis
+        .nice()
 
-    d3.select("#pollutionGraph")
-        .append("svg:g")
-        .attr("id", "xAxis")
-        .attr("class", "axis")
-        .attr("transform", "translate(30,"+ (400 - 30) +")")
-        .call(xAxis)
-        .selectAll("line")
-        .attr("class", "xLines")
-        .attr("y1", -340)
-        .attr("y2", 6)
-        .attr("stroke", null)
+    vis.scale.y = d3.scaleLinear()
+        .domain([0, d3.max(arr)])    // this is the value on the y-axis
+        .range([0, vis.height - vis.margin.top - vis.margin.bottom])    // this is the space allocated the axis
+        .nice()
 
-    d3.select("#pollutionGraph")
-        .append("svg:g")
-        .attr("id", "yAxis")
-        .attr("class", "axis")
-        .attr("transform", "translate(30,30)")
-        .call(yAxis)
-        .selectAll("line")
-        .attr("class", "yLines")
-        .attr("x1", -4)
-        .attr("x2", 800 - 30 - 30)
-        .attr("stroke", null)
+    /* create a group for the bars of the graph */
+    var bars = svg.selectAll("rect")
+        .data(arr)
+		.enter()
+		.append("rect")
+		.attr("x", function(d, i) {
+			return i * (vis.width / vis.particles_number);
+		})
+		.attr("y", function(d) {
+			return vis.height - vis.scale.y(d);
+		})
+		.attr("width", vis.width / vis.particles_number - vis.barPadding)
+		.attr("height", function(d) {
+			return vis.scale.y(d);
+		})
+		.attr("fill", "blue");
 
-    /* remove the solid lines along the y-axis */
-    d3.select("#pollutionGraph")
-        .select("#yAxis")
-        .select(".domain").remove()
+	svg.selectAll("text")
+        .data(arr)
+		.enter()
+		.append("text")
+		.text(function(d) {
+			return d;
+		})
+		.attr("text-anchor", "middle")
+		.attr("x", function(d, i) {
+			return i * (vis.width / vis.particles_number) + (vis.width / vis.particles_number - vis.barPadding) / 2;
+		})
+		.attr("y", function(d) {
+			return vis.height - vis.scale.y(d);
+		})
+		.attr("font-family", "sans-serif")
+		.attr("font-size", "11px")
+		.attr("fill", "white");
 
-    /* remove the solid lines along the y-axis */
-    d3.select("#pollutionGraph")
-        .select("#xAxis")
-        .select(".domain").remove()
-
-    /* create a group for the lines of the graph */
-    d3.select("#pollutionGraph")
-        .append("svg:g")
-        .attr("id", "minMaxArea")
-
-    d3.select("#pollutionGraph")
-        .append("svg:g")
-        .attr("id", "lines")
-
-    /* change the labels of the x-axis */
-    d3.select("#pollutionGraph")
-        .select("#xAxis")
-        .selectAll("text")
-        .text(function(d,i)
-        {
-            return vis.months[i]
-        })
 }
